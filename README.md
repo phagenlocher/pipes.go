@@ -1,6 +1,6 @@
 # pipes.go
 
-![Screenshot](screen.png "Screenshot")
+![Screenshot](doc/screen.png "Screenshot")
 
 ## Description
 A [pipes.sh](https://github.com/pipeseroni/pipes.sh) clone written in Golang.
