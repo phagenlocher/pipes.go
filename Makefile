@@ -3,7 +3,7 @@ TARGET = pipes
 bindir = /usr/local/bin
 
 all: pipes.go
-	go get -x github.com/rthornton128/goncurses
+	$(CC) get -x github.com/rthornton128/goncurses
 	$(CC) build -x -o $(TARGET) pipes.go
 
 install: all

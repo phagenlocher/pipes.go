@@ -16,8 +16,10 @@ const DOWN = 1
 const RIGHT = 2
 const LEFT = 3
 
-var change_prob float64
+var changeProb float64
 var rand_start bool
+var newColor bool
+var waitTime int64
 
 func pipe(scr_lock chan bool) {
 	// Generate color
@@ -42,7 +44,7 @@ func pipe(scr_lock chan bool) {
 	for {
 		// Store old directiion
 		old_dir = dir
-		if rand.Float64() > change_prob {
+		if rand.Float64() > changeProb {
 			// Get new direction
 			new_dir = rand.Intn(4)
 			// Check if the direction isn't the reversed
@@ -99,21 +101,26 @@ func pipe(scr_lock chan bool) {
 		scr_lock <- true
 
 		// Changing coordinates if leaving screen
+		oob := true // Out of bounds
 		if x > max_x {
 			x = 0
-		}
-		if y > max_y {
+		} else if y > max_y {
 			y = 0
-		}
-		if x < 0 {
+		} else if x < 0 {
 			x = max_x
-		}
-		if y < 0 {
+		} else if y < 0 {
 			y = max_y
+		} else {
+			oob = false
+		}
+		// If the color needs to be changed and we went out of bounds
+		// change the color
+		if newColor && oob {
+			color = int16(rand.Intn(7) + 1)
 		}
 
 		// Wait
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(time.Duration(waitTime) * time.Millisecond)
 
 	}
 
@@ -123,12 +130,22 @@ func main() {
 	// Parse flags
 	num_pipes := flag.Int("p", 1, "The `amount of pipes` to display")
 	color := flag.Bool("C", false, "Disables color")
+	NFlag := flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
 	reset_lim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
-	ch_prob := flag.Float64("s", 0.8, "`Probability` of NOT changing the direction (0.0 - 1.0)")
-	random := flag.Bool("R", false, "Start at random coordinates")
+	fps := flag.Int("f", 75, "Sets targeted `frames per second` (shouldn't be higher than 500)")
+	sVal := flag.Float64("s", 0.8, "`Probability` of NOT changing the direction (0.0 - 1.0)")
+	RFlag := flag.Bool("R", false, "Start at random coordinates")
 	flag.Parse()
-	change_prob = *ch_prob
-	rand_start = *random
+
+	// Set variables
+	changeProb = *sVal
+	rand_start = *RFlag
+	newColor = *NFlag
+	if *fps != 0 {
+		waitTime = int64(1000 / *fps)
+	} else {
+		return
+	}
 
 	// Seeding RNG with current time
 	rand.Seed(time.Now().Unix())
@@ -176,7 +193,7 @@ func main() {
 
 	// Refresh loop
 	for i := 0; stdscr.GetChar() == 0; i++ {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(time.Duration(waitTime) * time.Millisecond)
 
 		if *reset_lim == 0 {
 			i--
