@@ -16,7 +16,10 @@ const DOWN = 1
 const RIGHT = 2
 const LEFT = 3
 
-func pipe(x, y int, ch_prob float64, scr_lock chan bool) {
+var change_prob float64
+var rand_start bool
+
+func pipe(scr_lock chan bool) {
 	// Generate color
 	color := int16(rand.Intn(7) + 1)
 
@@ -27,12 +30,19 @@ func pipe(x, y int, ch_prob float64, scr_lock chan bool) {
 	// Window and coordinates
 	win := goncurses.StdScr()
 	max_y, max_x := win.MaxYX()
+	var x, y int
+	if rand_start {
+		x = rand.Intn(max_x)
+		y = rand.Intn(max_y)
+	} else {
+		x = int(max_x / 2)
+		y = int(max_y / 2)
+	}
 
 	for {
-
 		// Store old directiion
 		old_dir = dir
-		if rand.Float64() > ch_prob {
+		if rand.Float64() > change_prob {
 			// Get new direction
 			new_dir = rand.Intn(4)
 			// Check if the direction isn't the reversed
@@ -85,20 +95,20 @@ func pipe(x, y int, ch_prob float64, scr_lock chan bool) {
 			}
 			x--
 		}
-		// Give back log
+		// Give back lock
 		scr_lock <- true
 
 		// Changing coordinates if leaving screen
 		if x > max_x {
-			x = 1
+			x = 0
 		}
 		if y > max_y {
-			y = 1
+			y = 0
 		}
-		if x < 1 {
+		if x < 0 {
 			x = max_x
 		}
-		if y < 1 {
+		if y < 0 {
 			y = max_y
 		}
 
@@ -113,10 +123,12 @@ func main() {
 	// Parse flags
 	num_pipes := flag.Int("p", 1, "The `amount of pipes` to display")
 	color := flag.Bool("C", false, "Disables color")
-	reset_lim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates`")
+	reset_lim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
 	ch_prob := flag.Float64("s", 0.8, "`Probability` of NOT changing the direction (0.0 - 1.0)")
 	random := flag.Bool("R", false, "Start at random coordinates")
 	flag.Parse()
+	change_prob = *ch_prob
+	rand_start = *random
 
 	// Seeding RNG with current time
 	rand.Seed(time.Now().Unix())
@@ -150,28 +162,25 @@ func main() {
 	goncurses.InitPair(6, goncurses.C_MAGENTA, goncurses.C_BLACK)
 	goncurses.InitPair(7, goncurses.C_CYAN, goncurses.C_BLACK)
 
-	// Set timeout and get max coordinates
+	// Set timeout
 	stdscr.Timeout(0)
-	max_y, max_x := stdscr.MaxYX()
 
 	// Creat channel for lock
 	lock := make(chan bool, 1)
 	lock <- true
 
-	// Generate goroutines (the pipes :P)
+	// Generate goroutines
 	for i := 0; i < *num_pipes; i++ {
-		if *random {
-			go pipe(rand.Intn(max_x), rand.Intn(max_y), *ch_prob, lock)
-		} else {
-			go pipe(int(max_x/2), int(max_y/2), *ch_prob, lock)
-		}
+		go pipe(lock)
 	}
 
 	// Refresh loop
 	for i := 0; stdscr.GetChar() == 0; i++ {
 		time.Sleep(10 * time.Millisecond)
 
-		if i > *reset_lim {
+		if *reset_lim == 0 {
+			i--
+		} else if i > *reset_lim {
 			stdscr.Clear()
 			i = 0
 		}
