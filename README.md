@@ -11,6 +11,7 @@ A [pipes.sh](https://github.com/pipeseroni/pipes.sh) clone written in Golang. Ru
 
 ## Usage
 * **-C** disables color
+* **-D** additionally uses dimmed colors
 * **-N** lets the pipes change color when exiting the screen (just like in pipes.sh)
 * **-R** lets the pipes start from random coordinates
 * **-p** specifies the amount of pipes
