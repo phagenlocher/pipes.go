@@ -18,11 +18,12 @@ var changeProb float64
 var randStart bool
 var newColor bool
 var dimmedColors bool
+var numColors int
 var waitTime time.Duration
 
 func pipe(screenLock chan bool) {
 	// Generate color
-	color := int16(rand.Intn(14) + 1)
+	color := int16(rand.Intn(numColors * 2) + 1)
 
 	// Variables for curDirection
 	curDir := rand.Intn(3)
@@ -41,13 +42,13 @@ func pipe(screenLock chan bool) {
 	}
 
 	for {
-		// Store old curDirectiion
+		// Store old direction
 		oldDir = curDir
 		if rand.Float64() > changeProb {
-			// Get new curDirection
+			// Get new direction
 			newDir = rand.Intn(4)
-			// Check if the curDirection isn't the reversed
-			// old curDirection.
+			// Check if the direction isn't the reversed
+			// old direction.
 			if ((newDir + curDir) % 4) != 1 {
 				curDir = newDir
 			}
@@ -56,9 +57,11 @@ func pipe(screenLock chan bool) {
 		// Generate color and dimming attribute
 		dimmed := false
 		nColor := color
-		if color > 7 {
+		if color > int16(numColors) {
+			// Only dim if the flag has been set
 			dimmed = dimmedColors
-			nColor -= 7
+			// Subtract num of colors to get actual color
+			nColor -= int16(numColors)
 		}
 
 		// Get lock
@@ -127,7 +130,7 @@ func pipe(screenLock chan bool) {
 		// If the color needs to be changed and we went out of bounds
 		// change the color
 		if newColor && oob {
-			color = int16(rand.Intn(14) + 1)
+			color = int16(rand.Intn(numColors * 2) + 1)
 		}
 
 		// Wait
@@ -137,15 +140,71 @@ func pipe(screenLock chan bool) {
 
 }
 
+func setColorScheme(scheme int) int {
+	// Try to use the default background
+	var background int16
+	err := goncurses.UseDefaultColors()
+	if err != nil {
+		background = goncurses.C_BLACK
+	} else {
+		background = -1
+	}
+	// Init pairs according to scheme
+	switch scheme {
+	default:
+		goncurses.InitPair(1, goncurses.C_WHITE, background)
+		goncurses.InitPair(2, goncurses.C_GREEN, background)
+		goncurses.InitPair(3, goncurses.C_RED, background)
+		goncurses.InitPair(4, goncurses.C_YELLOW, background)
+		goncurses.InitPair(5, goncurses.C_BLUE, background)
+		goncurses.InitPair(6, goncurses.C_MAGENTA, background)
+		goncurses.InitPair(7, goncurses.C_CYAN, background)
+		return 7
+	case 1:
+		goncurses.InitPair(1, goncurses.C_WHITE, background)
+		goncurses.InitPair(2, goncurses.C_BLUE, background)
+		goncurses.InitPair(3, goncurses.C_CYAN, background)
+		return 3
+	case 2:
+		goncurses.InitPair(1, goncurses.C_RED, background)
+		goncurses.InitPair(2, goncurses.C_YELLOW, background)
+		goncurses.InitPair(3, goncurses.C_GREEN, background)
+		return 3
+	case 3:
+		goncurses.InitPair(1, goncurses.C_WHITE, background)
+		goncurses.InitPair(2, goncurses.C_BLUE, background)
+		goncurses.InitPair(3, goncurses.C_RED, background)
+		return 3
+	case 4:
+		goncurses.InitPair(1, goncurses.C_RED, background)
+		goncurses.InitPair(2, goncurses.C_GREEN, background)
+		goncurses.InitPair(3, goncurses.C_BLUE, background)
+		return 3
+	case 5:
+		goncurses.InitPair(1, goncurses.C_WHITE, background)
+		goncurses.InitPair(2, goncurses.C_RED, background)
+		return 2
+	case 6:
+		goncurses.InitPair(1, goncurses.C_WHITE, background)
+		goncurses.InitPair(2, goncurses.C_BLUE, background)
+		return 2
+	case 7:
+		goncurses.InitPair(1, goncurses.C_WHITE, background)
+		goncurses.InitPair(2, goncurses.C_GREEN, background)
+		return 2
+	}
+}
+
 func main() {
 	// Parse flags
-	num_pipes := flag.Int("p", 1, "The `amount of pipes` to display")
+	numPipes := flag.Int("p", 1, "The `amount of pipes` to display")
 	color := flag.Bool("C", false, "Disables color")
 	DFlag := flag.Bool("D", false, "Use dimmed colors in addition to normal colors")
 	NFlag := flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
-	reset_lim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
+	resetLim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
 	fps := flag.Int("f", 75, "Sets targeted `frames per second` that also dictate the moving speed")
-	sVal := flag.Float64("s", 0.8, "`Probability` of NOT changing the curDirection (0.0 - 1.0)")
+	colorScheme := flag.Int("c", 0, "Sets the `colorscheme` (0-7)")
+	sVal := flag.Float64("s", 0.8, "`Probability` of NOT changing the curDirection (0.0-1.0)")
 	RFlag := flag.Bool("R", false, "Start at random coordinates")
 	flag.Parse()
 
@@ -184,17 +243,10 @@ func main() {
 	goncurses.Echo(false)
 	goncurses.Raw(true)
 
-	// Init colors
-	goncurses.UseDefaultColors()
-	goncurses.InitPair(1, goncurses.C_WHITE, -1)
-	goncurses.InitPair(2, goncurses.C_GREEN, -1)
-	goncurses.InitPair(3, goncurses.C_RED, -1)
-	goncurses.InitPair(4, goncurses.C_YELLOW, -1)
-	goncurses.InitPair(5, goncurses.C_BLUE, -1)
-	goncurses.InitPair(6, goncurses.C_MAGENTA, -1)
-	goncurses.InitPair(7, goncurses.C_CYAN, -1)
+	// Init color pairs and number of colors
+	numColors = setColorScheme(*colorScheme)
 
-	// Set timeout and clear
+	// Set timeout, normal attribute and clear screen
 	stdscr.AttrSet(goncurses.A_NORMAL)
 	stdscr.Timeout(0)
 	stdscr.Clear()
@@ -205,7 +257,7 @@ func main() {
 	lock <- true
 
 	// Generate goroutines
-	for i := 0; i < *num_pipes; i++ {
+	for i := 0; i < *numPipes; i++ {
 		go pipe(lock)
 	}
 
@@ -215,12 +267,12 @@ func main() {
 		time.Sleep(waitTime)
 
 		// Only increment if reset limited is not 0
-		if *reset_lim != 0 {
+		if *resetLim != 0 {
 			i++
 		}
 
 		// Reset limit has been reached
-		if i > *reset_lim {
+		if i > *resetLim {
 			stdscr.Clear()
 			i = 0
 		}
