@@ -3,7 +3,8 @@
 ![Screenshot](doc/screen.png "Screenshot")
 
 ## Description
-A [pipes.sh](https://github.com/pipeseroni/pipes.sh) clone written in Golang. Runs faster and has less CPU usage than the original.
+A [pipes.sh](https://github.com/pipeseroni/pipes.sh) clone written in Golang. While the original cannot be beaten in terms of compatibility and file size, it has a bit of a performance issue.
+*pipes.go* tries to fix this problem with high concurrency. This results in lower CPU usage and smoother animation.
 
 ## Requirements
 * Golang
