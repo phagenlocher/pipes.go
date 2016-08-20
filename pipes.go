@@ -9,11 +9,14 @@ import (
 	"time"
 )
 
-const UP = 0
-const DOWN = 1
-const RIGHT = 2
-const LEFT = 3
+const (
+	UP    = 0
+	DOWN  = 1
+	RIGHT = 2
+	LEFT  = 3
+)
 
+var printChars [6]goncurses.Char
 var changeProb float64
 var randStart bool
 var newColor bool
@@ -76,38 +79,38 @@ func pipe(screenLock chan bool) {
 		// Print ACS char and change coordinates
 		if curDir == UP {
 			if oldDir == LEFT {
-				win.MoveAddChar(y, x, goncurses.ACS_LLCORNER)
+				win.MoveAddChar(y, x, printChars[4])
 			} else if oldDir == RIGHT {
-				win.MoveAddChar(y, x, goncurses.ACS_LRCORNER)
+				win.MoveAddChar(y, x, printChars[5])
 			} else {
-				win.MoveAddChar(y, x, goncurses.ACS_VLINE)
+				win.MoveAddChar(y, x, printChars[1])
 			}
 			y--
 		} else if curDir == DOWN {
 			if oldDir == LEFT {
-				win.MoveAddChar(y, x, goncurses.ACS_ULCORNER)
+				win.MoveAddChar(y, x, printChars[2])
 			} else if oldDir == RIGHT {
-				win.MoveAddChar(y, x, goncurses.ACS_URCORNER)
+				win.MoveAddChar(y, x, printChars[3])
 			} else {
-				win.MoveAddChar(y, x, goncurses.ACS_VLINE)
+				win.MoveAddChar(y, x, printChars[1])
 			}
 			y++
 		} else if curDir == RIGHT {
 			if oldDir == UP {
-				win.MoveAddChar(y, x, goncurses.ACS_ULCORNER)
+				win.MoveAddChar(y, x, printChars[2])
 			} else if oldDir == DOWN {
-				win.MoveAddChar(y, x, goncurses.ACS_LLCORNER)
+				win.MoveAddChar(y, x, printChars[4])
 			} else {
-				win.MoveAddChar(y, x, goncurses.ACS_HLINE)
+				win.MoveAddChar(y, x, printChars[0])
 			}
 			x++
 		} else if curDir == LEFT {
 			if oldDir == UP {
-				win.MoveAddChar(y, x, goncurses.ACS_URCORNER)
+				win.MoveAddChar(y, x, printChars[3])
 			} else if oldDir == DOWN {
-				win.MoveAddChar(y, x, goncurses.ACS_LRCORNER)
+				win.MoveAddChar(y, x, printChars[5])
 			} else {
-				win.MoveAddChar(y, x, goncurses.ACS_HLINE)
+				win.MoveAddChar(y, x, printChars[0])
 			}
 			x--
 		}
@@ -140,6 +143,39 @@ func pipe(screenLock chan bool) {
 
 }
 
+func setPrintChars(set int) {
+	switch set {
+	default:
+		printChars[0] = goncurses.ACS_HLINE
+		printChars[1] = goncurses.ACS_VLINE
+		printChars[2] = goncurses.ACS_ULCORNER
+		printChars[3] = goncurses.ACS_URCORNER
+		printChars[4] = goncurses.ACS_LLCORNER
+		printChars[5] = goncurses.ACS_LRCORNER
+	case 1:
+		printChars[0] = '.'
+		printChars[1] = '.'
+		printChars[2] = 'o'
+		printChars[3] = 'o'
+		printChars[4] = 'o'
+		printChars[5] = 'o'
+	case 2:
+		printChars[0] = '.'
+		printChars[1] = '.'
+		printChars[2] = '.'
+		printChars[3] = '.'
+		printChars[4] = '.'
+		printChars[5] = '.'
+	case 3:
+		printChars[0] = '-'
+		printChars[1] = '|'
+		printChars[2] = '+'
+		printChars[3] = '+'
+		printChars[4] = '+'
+		printChars[5] = '+'
+	}
+}
+
 func setColorScheme(scheme int) int {
 	// Try to use the default background
 	var background int16
@@ -152,41 +188,41 @@ func setColorScheme(scheme int) int {
 	// Init pairs according to scheme
 	switch scheme {
 	default:
-		goncurses.InitPair(1, goncurses.C_WHITE, background)
-		goncurses.InitPair(2, goncurses.C_GREEN, background)
-		goncurses.InitPair(3, goncurses.C_RED, background)
-		goncurses.InitPair(4, goncurses.C_YELLOW, background)
-		goncurses.InitPair(5, goncurses.C_BLUE, background)
+		goncurses.InitPair(1, goncurses.C_WHITE,   background)
+		goncurses.InitPair(2, goncurses.C_GREEN,   background)
+		goncurses.InitPair(3, goncurses.C_RED,     background)
+		goncurses.InitPair(4, goncurses.C_YELLOW,  background)
+		goncurses.InitPair(5, goncurses.C_BLUE,    background)
 		goncurses.InitPair(6, goncurses.C_MAGENTA, background)
-		goncurses.InitPair(7, goncurses.C_CYAN, background)
+		goncurses.InitPair(7, goncurses.C_CYAN,    background)
 		return 7
 	case 1:
 		goncurses.InitPair(1, goncurses.C_WHITE, background)
-		goncurses.InitPair(2, goncurses.C_BLUE, background)
-		goncurses.InitPair(3, goncurses.C_CYAN, background)
+		goncurses.InitPair(2, goncurses.C_BLUE,  background)
+		goncurses.InitPair(3, goncurses.C_CYAN,  background)
 		return 3
 	case 2:
-		goncurses.InitPair(1, goncurses.C_RED, background)
+		goncurses.InitPair(1, goncurses.C_RED,    background)
 		goncurses.InitPair(2, goncurses.C_YELLOW, background)
-		goncurses.InitPair(3, goncurses.C_GREEN, background)
+		goncurses.InitPair(3, goncurses.C_GREEN,  background)
 		return 3
 	case 3:
 		goncurses.InitPair(1, goncurses.C_WHITE, background)
-		goncurses.InitPair(2, goncurses.C_BLUE, background)
-		goncurses.InitPair(3, goncurses.C_RED, background)
+		goncurses.InitPair(2, goncurses.C_BLUE,  background)
+		goncurses.InitPair(3, goncurses.C_RED,   background)
 		return 3
 	case 4:
-		goncurses.InitPair(1, goncurses.C_RED, background)
+		goncurses.InitPair(1, goncurses.C_RED,   background)
 		goncurses.InitPair(2, goncurses.C_GREEN, background)
-		goncurses.InitPair(3, goncurses.C_BLUE, background)
+		goncurses.InitPair(3, goncurses.C_BLUE,  background)
 		return 3
 	case 5:
 		goncurses.InitPair(1, goncurses.C_WHITE, background)
-		goncurses.InitPair(2, goncurses.C_RED, background)
+		goncurses.InitPair(2, goncurses.C_RED,   background)
 		return 2
 	case 6:
 		goncurses.InitPair(1, goncurses.C_WHITE, background)
-		goncurses.InitPair(2, goncurses.C_BLUE, background)
+		goncurses.InitPair(2, goncurses.C_BLUE,  background)
 		return 2
 	case 7:
 		goncurses.InitPair(1, goncurses.C_WHITE, background)
@@ -197,22 +233,24 @@ func setColorScheme(scheme int) int {
 
 func main() {
 	// Parse flags
-	numPipes := flag.Int("p", 1, "The `amount of pipes` to display")
-	color := flag.Bool("C", false, "Disables color")
-	DFlag := flag.Bool("D", false, "Use dimmed colors in addition to normal colors")
-	NFlag := flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
-	resetLim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
-	fps := flag.Int("f", 75, "Sets targeted `frames per second` that also dictate the moving speed")
+	numPipes 	:= flag.Int("p", 1, "The `amount of pipes` to display")
+	color 		:= flag.Bool("C", false, "Disables color")
+	BFlag 		:= flag.Bool("B", false, "Disables bold output")
+	DFlag 		:= flag.Bool("D", false, "Use dimmed colors in addition to normal colors")
+	NFlag 		:= flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
+	resetLim 	:= flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
+	fps 		:= flag.Int("f", 75, "Sets targeted `frames per second` that also dictate the moving speed")
 	colorScheme := flag.Int("c", 0, "Sets the `colorscheme` (0-7)")
-	sVal := flag.Float64("s", 0.8, "`Probability` of NOT changing the curDirection (0.0-1.0)")
-	RFlag := flag.Bool("R", false, "Start at random coordinates")
+	charSet	    := flag.Int("t", 0, "Sets the `character set` (0-3)")
+	sVal 		:= flag.Float64("s", 0.8, "`Probability` of NOT changing the curDirection (0.0-1.0)")
+	RFlag 		:= flag.Bool("R", false, "Start at random coordinates")
 	flag.Parse()
 
 	// Set variables
-	changeProb = *sVal
-	randStart = *RFlag
-	newColor = *NFlag
-	dimmedColors = *DFlag
+	changeProb 		= *sVal
+	randStart 		= *RFlag
+	newColor 		= *NFlag
+	dimmedColors 	= *DFlag
 	// Set FPS
 	if *fps > 1000000 {
 		waitTime = time.Duration(1) * time.Microsecond
@@ -220,7 +258,8 @@ func main() {
 		waitTime = time.Duration(1000000 / *fps) * time.Microsecond
 	} else {
 		// 0 or negative FPS are impossible
-		return
+		fmt.Fprintln(os.Stderr, "FPS cannot be smaller than 1")
+		os.Exit(1)
 	}
 
 	// Seeding RNG with current time
@@ -246,8 +285,15 @@ func main() {
 	// Init color pairs and number of colors
 	numColors = setColorScheme(*colorScheme)
 
-	// Set timeout, normal attribute and clear screen
-	stdscr.AttrSet(goncurses.A_NORMAL)
+	// Init chars
+	setPrintChars(*charSet)
+
+	// Set attribute, timeout (non blocking) and clear screen
+	if *BFlag {
+		stdscr.AttrSet(goncurses.A_NORMAL)
+	} else {
+		stdscr.AttrSet(goncurses.A_BOLD)
+	}
 	stdscr.Timeout(0)
 	stdscr.Clear()
 	stdscr.Refresh()
@@ -266,15 +312,13 @@ func main() {
 		// Wait
 		time.Sleep(waitTime)
 
-		// Only increment if reset limited is not 0
-		if *resetLim != 0 {
-			i++
-		}
-
 		// Reset limit has been reached
 		if i > *resetLim {
 			stdscr.Clear()
 			i = 0
+		} else if *resetLim != 0 {
+			// Only increment if reset limited is not 0
+			i++
 		}
 	}
 
