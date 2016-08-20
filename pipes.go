@@ -6,8 +6,6 @@ import (
 	"github.com/rthornton128/goncurses"
 	"math/rand"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 )
 
@@ -17,80 +15,93 @@ const RIGHT = 2
 const LEFT = 3
 
 var changeProb float64
-var rand_start bool
+var randStart bool
 var newColor bool
+var dimmedColors bool
 var waitTime time.Duration
 
-func pipe(scr_lock chan bool) {
+func pipe(screenLock chan bool) {
 	// Generate color
-	color := int16(rand.Intn(7) + 1)
+	color := int16(rand.Intn(14) + 1)
 
-	// Variables for direction
-	dir := rand.Intn(3)
-	var new_dir, old_dir int
+	// Variables for curDirection
+	curDir := rand.Intn(3)
+	var newDir, oldDir int
 
 	// Window and coordinates
 	win := goncurses.StdScr()
-	max_y, max_x := win.MaxYX()
+	maxY, maxX := win.MaxYX()
 	var x, y int
-	if rand_start {
-		x = rand.Intn(max_x)
-		y = rand.Intn(max_y)
+	if randStart {
+		x = rand.Intn(maxX)
+		y = rand.Intn(maxY)
 	} else {
-		x = int(max_x / 2)
-		y = int(max_y / 2)
+		x = int(maxX / 2)
+		y = int(maxY / 2)
 	}
 
 	for {
-		// Store old directiion
-		old_dir = dir
+		// Store old curDirectiion
+		oldDir = curDir
 		if rand.Float64() > changeProb {
-			// Get new direction
-			new_dir = rand.Intn(4)
-			// Check if the direction isn't the reversed
-			// old direction.
-			if ((new_dir + dir) % 4) != 1 {
-				dir = new_dir
+			// Get new curDirection
+			newDir = rand.Intn(4)
+			// Check if the curDirection isn't the reversed
+			// old curDirection.
+			if ((newDir + curDir) % 4) != 1 {
+				curDir = newDir
 			}
+		}
 
+		// Generate color and dimming attribute
+		dimmed := false
+		nColor := color
+		if color > 7 {
+			dimmed = dimmedColors
+			nColor -= 7
 		}
 
 		// Get lock
-		<-scr_lock
-		// Set color
-		win.ColorOn(color)
+		<-screenLock
+		// Set color and attribute
+		if dimmed {
+			win.AttrOn(goncurses.A_DIM)
+		} else {
+			win.AttrOff(goncurses.A_DIM)
+		}
+		win.ColorOn(nColor)
 		// Print ACS char and change coordinates
-		if dir == UP {
-			if old_dir == LEFT {
+		if curDir == UP {
+			if oldDir == LEFT {
 				win.MoveAddChar(y, x, goncurses.ACS_LLCORNER)
-			} else if old_dir == RIGHT {
+			} else if oldDir == RIGHT {
 				win.MoveAddChar(y, x, goncurses.ACS_LRCORNER)
 			} else {
 				win.MoveAddChar(y, x, goncurses.ACS_VLINE)
 			}
 			y--
-		} else if dir == DOWN {
-			if old_dir == LEFT {
+		} else if curDir == DOWN {
+			if oldDir == LEFT {
 				win.MoveAddChar(y, x, goncurses.ACS_ULCORNER)
-			} else if old_dir == RIGHT {
+			} else if oldDir == RIGHT {
 				win.MoveAddChar(y, x, goncurses.ACS_URCORNER)
 			} else {
 				win.MoveAddChar(y, x, goncurses.ACS_VLINE)
 			}
 			y++
-		} else if dir == RIGHT {
-			if old_dir == UP {
+		} else if curDir == RIGHT {
+			if oldDir == UP {
 				win.MoveAddChar(y, x, goncurses.ACS_ULCORNER)
-			} else if old_dir == DOWN {
+			} else if oldDir == DOWN {
 				win.MoveAddChar(y, x, goncurses.ACS_LLCORNER)
 			} else {
 				win.MoveAddChar(y, x, goncurses.ACS_HLINE)
 			}
 			x++
-		} else if dir == LEFT {
-			if old_dir == UP {
+		} else if curDir == LEFT {
+			if oldDir == UP {
 				win.MoveAddChar(y, x, goncurses.ACS_URCORNER)
-			} else if old_dir == DOWN {
+			} else if oldDir == DOWN {
 				win.MoveAddChar(y, x, goncurses.ACS_LRCORNER)
 			} else {
 				win.MoveAddChar(y, x, goncurses.ACS_HLINE)
@@ -98,25 +109,25 @@ func pipe(scr_lock chan bool) {
 			x--
 		}
 		// Give back lock
-		scr_lock <- true
+		screenLock <- true
 
 		// Changing coordinates if leaving screen
 		oob := true // Out of bounds
-		if x > max_x {
+		if x > maxX {
 			x = 0
-		} else if y > max_y {
+		} else if y > maxY {
 			y = 0
 		} else if x < 0 {
-			x = max_x
+			x = maxX
 		} else if y < 0 {
-			y = max_y
+			y = maxY
 		} else {
 			oob = false
 		}
 		// If the color needs to be changed and we went out of bounds
 		// change the color
 		if newColor && oob {
-			color = int16(rand.Intn(7) + 1)
+			color = int16(rand.Intn(14) + 1)
 		}
 
 		// Wait
@@ -130,30 +141,31 @@ func main() {
 	// Parse flags
 	num_pipes := flag.Int("p", 1, "The `amount of pipes` to display")
 	color := flag.Bool("C", false, "Disables color")
+	DFlag := flag.Bool("D", false, "Use dimmed colors in addition to normal colors")
 	NFlag := flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
 	reset_lim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
-	fps := flag.Int("f", 75, "Sets targeted `frames per second` (max 500)")
-	sVal := flag.Float64("s", 0.8, "`Probability` of NOT changing the direction (0.0 - 1.0)")
+	fps := flag.Int("f", 75, "Sets targeted `frames per second` that also dictate the moving speed")
+	sVal := flag.Float64("s", 0.8, "`Probability` of NOT changing the curDirection (0.0 - 1.0)")
 	RFlag := flag.Bool("R", false, "Start at random coordinates")
 	flag.Parse()
 
 	// Set variables
 	changeProb = *sVal
-	rand_start = *RFlag
+	randStart = *RFlag
 	newColor = *NFlag
-	if *fps > 500 {
-		waitTime = time.Duration(1000 / 500) * time.Millisecond
-	} else if *fps != 0 {
-		waitTime = time.Duration(1000 / *fps) * time.Millisecond
+	dimmedColors = *DFlag
+	// Set FPS
+	if *fps > 1000000 {
+		waitTime = time.Duration(1) * time.Microsecond
+	} else if *fps > 0 {
+		waitTime = time.Duration(1000000 / *fps) * time.Microsecond
 	} else {
+		// 0 or negative FPS are impossible
 		return
 	}
 
 	// Seeding RNG with current time
 	rand.Seed(time.Now().Unix())
-
-	// Disable SIGINT
-	signal.Ignore(syscall.SIGINT)
 
 	// Init ncurses
 	stdscr, err := goncurses.Init()
@@ -170,18 +182,20 @@ func main() {
 	goncurses.FlushInput()
 	goncurses.Cursor(0)
 	goncurses.Echo(false)
-	goncurses.CBreak(true)
+	goncurses.Raw(true)
 
 	// Init colors
-	goncurses.InitPair(1, goncurses.C_WHITE, goncurses.C_BLACK)
-	goncurses.InitPair(2, goncurses.C_GREEN, goncurses.C_BLACK)
-	goncurses.InitPair(3, goncurses.C_RED, goncurses.C_BLACK)
-	goncurses.InitPair(4, goncurses.C_YELLOW, goncurses.C_BLACK)
-	goncurses.InitPair(5, goncurses.C_BLUE, goncurses.C_BLACK)
-	goncurses.InitPair(6, goncurses.C_MAGENTA, goncurses.C_BLACK)
-	goncurses.InitPair(7, goncurses.C_CYAN, goncurses.C_BLACK)
+	goncurses.UseDefaultColors()
+	goncurses.InitPair(1, goncurses.C_WHITE, -1)
+	goncurses.InitPair(2, goncurses.C_GREEN, -1)
+	goncurses.InitPair(3, goncurses.C_RED, -1)
+	goncurses.InitPair(4, goncurses.C_YELLOW, -1)
+	goncurses.InitPair(5, goncurses.C_BLUE, -1)
+	goncurses.InitPair(6, goncurses.C_MAGENTA, -1)
+	goncurses.InitPair(7, goncurses.C_CYAN, -1)
 
 	// Set timeout and clear
+	stdscr.AttrSet(goncurses.A_NORMAL)
 	stdscr.Timeout(0)
 	stdscr.Clear()
 	stdscr.Refresh()
