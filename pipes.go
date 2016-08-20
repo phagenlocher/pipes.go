@@ -19,7 +19,7 @@ const LEFT = 3
 var changeProb float64
 var rand_start bool
 var newColor bool
-var waitTime int64
+var waitTime time.Duration
 
 func pipe(scr_lock chan bool) {
 	// Generate color
@@ -120,7 +120,7 @@ func pipe(scr_lock chan bool) {
 		}
 
 		// Wait
-		time.Sleep(time.Duration(waitTime) * time.Millisecond)
+		time.Sleep(waitTime)
 
 	}
 
@@ -132,7 +132,7 @@ func main() {
 	color := flag.Bool("C", false, "Disables color")
 	NFlag := flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
 	reset_lim := flag.Int("r", 2000, "Resets after the speciefied `amount of updates` (0 means no reset)")
-	fps := flag.Int("f", 75, "Sets targeted `frames per second` (shouldn't be higher than 500)")
+	fps := flag.Int("f", 75, "Sets targeted `frames per second` (max 500)")
 	sVal := flag.Float64("s", 0.8, "`Probability` of NOT changing the direction (0.0 - 1.0)")
 	RFlag := flag.Bool("R", false, "Start at random coordinates")
 	flag.Parse()
@@ -141,8 +141,10 @@ func main() {
 	changeProb = *sVal
 	rand_start = *RFlag
 	newColor = *NFlag
-	if *fps != 0 {
-		waitTime = int64(1000 / *fps)
+	if *fps > 500 {
+		waitTime = time.Duration(1000 / 500) * time.Millisecond
+	} else if *fps != 0 {
+		waitTime = time.Duration(1000 / *fps) * time.Millisecond
 	} else {
 		return
 	}
@@ -167,8 +169,8 @@ func main() {
 	}
 	goncurses.FlushInput()
 	goncurses.Cursor(0)
-	goncurses.Echo(true)
-	goncurses.CBreak(false)
+	goncurses.Echo(false)
+	goncurses.CBreak(true)
 
 	// Init colors
 	goncurses.InitPair(1, goncurses.C_WHITE, goncurses.C_BLACK)
@@ -179,8 +181,10 @@ func main() {
 	goncurses.InitPair(6, goncurses.C_MAGENTA, goncurses.C_BLACK)
 	goncurses.InitPair(7, goncurses.C_CYAN, goncurses.C_BLACK)
 
-	// Set timeout
+	// Set timeout and clear
 	stdscr.Timeout(0)
+	stdscr.Clear()
+	stdscr.Refresh()
 
 	// Creat channel for lock
 	lock := make(chan bool, 1)
@@ -191,13 +195,18 @@ func main() {
 		go pipe(lock)
 	}
 
-	// Refresh loop
-	for i := 0; stdscr.GetChar() == 0; i++ {
-		time.Sleep(time.Duration(waitTime) * time.Millisecond)
+	// Refresh loop (runs until a key was pressed)
+	for i := 0; stdscr.GetChar() == 0; {
+		// Wait
+		time.Sleep(waitTime)
 
-		if *reset_lim == 0 {
-			i--
-		} else if i > *reset_lim {
+		// Only increment if reset limited is not 0
+		if *reset_lim != 0 {
+			i++
+		}
+
+		// Reset limit has been reached
+		if i > *reset_lim {
 			stdscr.Clear()
 			i = 0
 		}
