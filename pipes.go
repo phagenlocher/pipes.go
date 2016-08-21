@@ -28,7 +28,10 @@ func pipe(screenLock chan bool) {
     // Generate color
     color := int16(rand.Intn(numColors * 2) + 1)
 
-    // Variables for curDirection
+    // Character to be printed
+    var printChar goncurses.Char
+
+    // Variables for dircetion
     curDir := rand.Intn(3)
     var newDir, oldDir int
 
@@ -67,55 +70,66 @@ func pipe(screenLock chan bool) {
             nColor -= int16(numColors)
         }
 
+        // Get char corresponding to pipes direction
+        if curDir == UP {
+            if oldDir == LEFT {
+                printChar = printChars[4]
+            } else if oldDir == RIGHT {
+                printChar = printChars[5]
+            } else {
+                printChar = printChars[1]
+            }
+        } else if curDir == DOWN {
+            if oldDir == LEFT {
+                printChar = printChars[2]
+            } else if oldDir == RIGHT {
+                printChar = printChars[3]
+            } else {
+                printChar = printChars[1]
+            }
+        } else if curDir == RIGHT {
+            if oldDir == UP {
+                printChar = printChars[2]
+            } else if oldDir == DOWN {
+                printChar = printChars[4]
+            } else {
+                printChar = printChars[0]
+            }
+        } else if curDir == LEFT {
+            if oldDir == UP {
+                printChar = printChars[3]
+            } else if oldDir == DOWN {
+                printChar = printChars[5]
+            } else {
+                printChar = printChars[0]
+            }
+        }
+
         // Get lock
         <-screenLock
-        // Set color and attribute
+        // Set attribute
         if dimmed {
             win.AttrOn(goncurses.A_DIM)
         } else {
             win.AttrOff(goncurses.A_DIM)
         }
+        // Set color
         win.ColorOn(nColor)
-        // Print ACS char and change coordinates
-        if curDir == UP {
-            if oldDir == LEFT {
-                win.MoveAddChar(y, x, printChars[4])
-            } else if oldDir == RIGHT {
-                win.MoveAddChar(y, x, printChars[5])
-            } else {
-                win.MoveAddChar(y, x, printChars[1])
-            }
-            y--
-        } else if curDir == DOWN {
-            if oldDir == LEFT {
-                win.MoveAddChar(y, x, printChars[2])
-            } else if oldDir == RIGHT {
-                win.MoveAddChar(y, x, printChars[3])
-            } else {
-                win.MoveAddChar(y, x, printChars[1])
-            }
-            y++
-        } else if curDir == RIGHT {
-            if oldDir == UP {
-                win.MoveAddChar(y, x, printChars[2])
-            } else if oldDir == DOWN {
-                win.MoveAddChar(y, x, printChars[4])
-            } else {
-                win.MoveAddChar(y, x, printChars[0])
-            }
-            x++
-        } else if curDir == LEFT {
-            if oldDir == UP {
-                win.MoveAddChar(y, x, printChars[3])
-            } else if oldDir == DOWN {
-                win.MoveAddChar(y, x, printChars[5])
-            } else {
-                win.MoveAddChar(y, x, printChars[0])
-            }
-            x--
-        }
+        // Print char
+        win.MoveAddChar(y, x, printChar)
         // Give back lock
         screenLock <- true
+
+        // Update coordinates
+        if curDir == UP {
+            y--
+        } else if curDir == DOWN {
+            y++
+        } else if curDir == RIGHT {
+            x++
+        } else if curDir == LEFT {
+            x--
+        }
 
         // Changing coordinates if leaving screen
         oob := true // Out of bounds
@@ -234,17 +248,17 @@ func setColorScheme(scheme int) int {
 
 func main() {
     // Parse flags
-    numPipes    := flag.Int("p", 5, "The `amount of pipes` to display")
     color       := flag.Bool("C", false, "Disables color")
     BFlag       := flag.Bool("B", false, "Disables bold output")
+    RFlag       := flag.Bool("R", false, "Start at random coordinates")
     DFlag       := flag.Bool("D", false, "Use dimmed colors in addition to normal colors (impacts performance drastically)")
     NFlag       := flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
+    numPipes    := flag.Int("p", 5, "The `amount of pipes` to display")
     resetLim    := flag.Int("r", 600, "Resets after the speciefied `amount of updates` (0 means no reset)")
     fps         := flag.Int("f", 60, "Sets targeted `frames per second` that also dictate the moving speed")
     colorScheme := flag.Int("c", 0, "Sets the `colorscheme` (0-7)")
     charSet     := flag.Int("t", 0, "Sets the `character set` (0-3)")
-    sVal        := flag.Float64("s", 0.8, "`Probability` of NOT changing the curDirection (0.0-1.0)")
-    RFlag       := flag.Bool("R", false, "Start at random coordinates")
+    sVal        := flag.Float64("s", 0.8, "`Probability` of NOT changing the direction (0.0-1.0)")
     flag.Parse()
 
     // Set variables
