@@ -249,7 +249,7 @@ func setColorScheme(scheme int) int {
 func main() {
     // Parse flags
     color       := flag.Bool("C", false, "Disables color")
-    BFlag       := flag.Bool("B", false, "Disables bold output")
+    BFlag       := flag.Bool("B", false, "Enables bold output")
     RFlag       := flag.Bool("R", false, "Start at random coordinates")
     DFlag       := flag.Bool("D", false, "Use dimmed colors in addition to normal colors (impacts performance drastically)")
     NFlag       := flag.Bool("N", false, "Changes the color of a pipe if it exits the screen")
@@ -305,9 +305,9 @@ func main() {
 
     // Set attribute, timeout (non blocking) and clear screen
     if *BFlag {
-        stdscr.AttrSet(goncurses.A_NORMAL)
-    } else {
         stdscr.AttrSet(goncurses.A_BOLD)
+    } else {
+        stdscr.AttrSet(goncurses.A_NORMAL)
     }
     stdscr.Timeout(0)
     stdscr.Clear()
