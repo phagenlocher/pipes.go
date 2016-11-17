@@ -2,15 +2,17 @@ CC = go
 TARGET = pipes
 bindir = /usr/local/bin
 
-all: pipes.go
+$(TARGET): *.go
 	$(CC) get -x github.com/rthornton128/goncurses
-	$(CC) build -x -o $(TARGET) pipes.go
+	$(CC) build -x -o $(TARGET) $<
 
-install: all
+.PHONY all: $(TARGET)
+
+.PHONY install: all
 	mv $(TARGET) $(DESTDIR)$(bindir)/$(TARGET)
 
-uninstall:
+.PHONY uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(TARGET)
 
-clean:
+.PHONY clean:
 	rm -f $(TARGET)
