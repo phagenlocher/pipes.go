@@ -6,10 +6,6 @@
 A [pipes.sh](https://github.com/pipeseroni/pipes.sh) clone written in Golang. While the original cannot be beaten in terms of compatibility and file size, it has a bit of a performance issue.
 *pipes.go* tries to fix this problem with high concurrency. This results in lower CPU usage and smoother animation.
 
-## Requirements
-* Golang
-* ncurses
-
 ## Usage
 * **-C** disables color
 * **-B** disables bold output
@@ -24,15 +20,23 @@ A [pipes.sh](https://github.com/pipeseroni/pipes.sh) clone written in Golang. Wh
 * **-s** sets the probability of not changing the direction for a pipe
 
 ## Building & Installation
+
+You will need to have developer's libraries for ncurses, git and Golang installed. On Debian or Ubuntu you can use this:
+
 ```
-make
+apt install libncurses-dev git golang
 ```
-A simple make call will install the needed library [goncurses](https://github.com/rthornton128/goncurses) and compile the program.
+
+You can build and install the executable using `go`:
+
 ```
-make install
+go build
+go install
 ```
-This will build the executable and move it to */usr/local/bin*.
+
+You can use `go list` to find the executable's install path:
+
 ```
-make uninstall
+go list -f '{{.Target}}'
 ```
-This will delete the executable from */usr/local/bin*.
+
