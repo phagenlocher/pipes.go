@@ -6,6 +6,7 @@ import (
     "github.com/rthornton128/goncurses"
     "math/rand"
     "os"
+    "sync"
     "time"
 )
 
@@ -23,8 +24,9 @@ var newColor bool
 var dimmedColors bool
 var numColors int
 var waitTime time.Duration
+var screenLock sync.Mutex
 
-func pipe(screenLock chan bool) {
+func pipe() {
     // Generate color
     color := int16(rand.Intn(numColors * 2) + 1)
 
@@ -106,7 +108,7 @@ func pipe(screenLock chan bool) {
         }
 
         // Get lock
-        <-screenLock
+        screenLock.Lock()
         // Set attribute
         if dimmed {
             win.AttrOn(goncurses.A_DIM)
@@ -118,7 +120,7 @@ func pipe(screenLock chan bool) {
         // Print char
         win.MoveAddChar(y, x, printChar)
         // Give back lock
-        screenLock <- true
+        screenLock.Unlock()
 
         // Update coordinates
         if curDir == UP {
@@ -313,13 +315,9 @@ func main() {
     stdscr.Clear()
     stdscr.Refresh()
 
-    // Create channel for lock
-    lock := make(chan bool, 1)
-    lock <- true
-
     // Generate goroutines
     for i := 0; i < *numPipes; i++ {
-        go pipe(lock)
+        go pipe()
     }
 
     // Refresh loop (runs until a key was pressed)
